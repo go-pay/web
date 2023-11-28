@@ -91,10 +91,10 @@ func (g *GinEngine) Start() {
 		}
 		xlog.Warn("http: Server closed")
 	}
-	xlog.Color(xlog.Green).Warnf("wait for process working finished")
+	xlog.Color(xlog.Green).Warn("wait for process working finished")
 	// wait for process finished
 	g.wg.Wait()
-	xlog.Color(xlog.Green).Warnf("process exit")
+	xlog.Color(xlog.Green).Warn("process exit")
 }
 
 // 监听信号
