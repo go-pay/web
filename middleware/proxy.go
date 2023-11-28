@@ -4,17 +4,34 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-pay/ecode"
-	"github.com/go-pay/proxy"
 )
 
 var (
-	httpCli = new(http.Client)
+	httpCli = &http.Client{
+		Timeout: 60 * time.Second,
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: defaultTransportDialContext(&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}),
+			TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			DisableKeepAlives:     true,
+			ForceAttemptHTTP2:     true,
+		},
+	}
 )
 
 type HttpRsp[V any] struct {
@@ -26,61 +43,35 @@ type HttpRsp[V any] struct {
 // GinProxy gin request proxy and get rsp
 func GinProxy[Rsp any](c *gin.Context, method, host, uri string) (rspParam Rsp, err error) {
 	var (
-		req     *http.Request
-		reader  *strings.Reader
+		//req     *http.Request
+		//reader  *strings.Reader
 		rMethod = c.Request.Method
 		rHeader = c.Request.Header
 		rUri    = c.Request.RequestURI
-		pa      = c.Request.Form.Encode()
-		rBody   = c.Request.Body
+		//pa      = c.Request.Form.Encode()
+		//rBody   = c.Request.Body
 	)
 	vo := reflect.ValueOf(rspParam)
 	if vo.Kind() != reflect.Ptr {
 		err = ecode.New(500, "", "rspParam must be point kind")
 		return
 	}
-	if uri != "" {
-		rUri = uri
-	}
 	if method != "" {
 		rMethod = strings.ToUpper(method)
 	}
+	if uri != "" {
+		rUri = uri
+	}
 	uri = host + rUri
 	// Request
-	ct := rHeader.Get(proxy.HEADER_CONTENT_TYPE)
-	switch rMethod {
-	case proxy.HTTP_METHOD_POST:
-		switch ct {
-		case proxy.CONTENT_TYPE_JSON:
-			jsbs, e := io.ReadAll(rBody)
-			if e != nil {
-				err = e
-				return
-			}
-			reader = strings.NewReader(string(jsbs))
-		case proxy.CONTENT_TYPE_FORM:
-			reader = strings.NewReader(pa)
-		}
-		req, err = http.NewRequestWithContext(c, rMethod, uri, reader)
-		if err != nil {
-			return
-		}
-	case proxy.HTTP_METHOD_GET:
-		req, err = http.NewRequestWithContext(c, rMethod, uri, nil)
-		if err != nil {
-			return
-		}
-	default:
-		err = ecode.New(500, "", "only support GET and POST")
+	req, e := http.NewRequestWithContext(c, rMethod, uri, c.Request.Body)
+	if err != nil {
+		err = e
 		return
 	}
-
-	// Request Content
+	// Request Header
 	req.Header = rHeader
-	req.Header.Del("Accept-Encoding")
-	//xlog.Warnf("reqH: %+v", req.Header)
-	httpCli.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, DisableKeepAlives: true}
-
+	// Do
 	resp, e := httpCli.Do(req)
 	if e != nil {
 		err = e
@@ -96,106 +87,43 @@ func GinProxy[Rsp any](c *gin.Context, method, host, uri string) (rspParam Rsp, 
 		err = ecode.New(resp.StatusCode, "", string(rspBytes))
 		return
 	}
-	//xlog.Infof("rspBytes:%v", string(rspBytes))
 	res := &HttpRsp[Rsp]{}
 	if err = json.Unmarshal(rspBytes, res); err != nil {
 		return
 	}
-	rspParam = res.Data
-	//xlog.Infof("rspParam: %+v", rspParam)
-	return rspParam, nil
+	return res.Data, nil
 }
 
 // GinPureProxy gin request proxy
-func GinPureProxy(c *gin.Context, method, host, uri string) {
+func GinPureProxy(c *gin.Context, host string) {
 	var (
-		req     *http.Request
-		reader  *strings.Reader
-		rMethod = c.Request.Method
-		rHeader = c.Request.Header
-		rUri    = c.Request.RequestURI
-		pa      = c.Request.Form.Encode()
-		rBody   = c.Request.Body
-		err     error
+		w       = c.Writer
+		r       = c.Request
+		rMethod = r.Method
+		rUri    = r.RequestURI
 	)
-	if uri != "" {
-		rUri = uri
-	}
-	if method != "" {
-		rMethod = strings.ToUpper(method)
-	}
-	uri = host + rUri
+	uri := host + rUri
 	// Request
-	ct := rHeader.Get(proxy.HEADER_CONTENT_TYPE)
-	switch rMethod {
-	case proxy.HTTP_METHOD_POST:
-		switch ct {
-		case proxy.CONTENT_TYPE_JSON:
-			jsbs, e := io.ReadAll(rBody)
-			if e != nil {
-				err = e
-				jSON(c, "", err)
-				return
-			}
-			reader = strings.NewReader(string(jsbs))
-		case proxy.CONTENT_TYPE_FORM:
-			reader = strings.NewReader(pa)
-		}
-		req, err = http.NewRequestWithContext(c, rMethod, uri, reader)
-		if err != nil {
-			jSON(c, "", err)
-			return
-		}
-	case proxy.HTTP_METHOD_GET:
-		req, err = http.NewRequestWithContext(c, rMethod, uri, nil)
-		if err != nil {
-			jSON(c, "", err)
-			return
-		}
-	default:
-		err = ecode.New(500, "", "only support GET and POST")
-		jSON(c, "", err)
+	req, err := http.NewRequestWithContext(c, rMethod, uri, c.Request.Body)
+	if err != nil {
+		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	// Request Content
-	req.Header = rHeader
-	req.Header.Del("Accept-Encoding")
-	//xlog.Warnf("reqH: %+v", req.Header)
-	httpCli.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, DisableKeepAlives: true}
-
-	resp, e := httpCli.Do(req)
-	if e != nil {
-		err = e
-		jSON(c, "", err)
+	// Request Header
+	req.Header = c.Request.Header
+	// Do
+	resp, err := httpCli.Do(req)
+	if err != nil {
+		http.Error(c.Writer, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
-	rspBytes, e := io.ReadAll(resp.Body)
-	if e != nil {
-		err = e
-		jSON(c, "", err)
-		return
+	// Response Header
+	for k, vs := range resp.Header {
+		for _, v := range vs {
+			w.Header().Add(k, v)
+		}
 	}
-	if resp.StatusCode != 200 {
-		err = ecode.New(resp.StatusCode, "", string(rspBytes))
-		jSON(c, "", err)
-		return
-	}
-	//xlog.Warnf("proxy.rsp: %s", string(rspBytes))
-	c.Data(200, resp.Header.Get("Content-Type"), rspBytes)
-}
-
-func jSON(c *gin.Context, data any, err error) {
-	e := ecode.FromError(err)
-	rsp := struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-		Data    any    `json:"data,omitempty"`
-	}{
-		Code:    e.Code(),
-		Message: e.Message(),
-		Data:    data,
-	}
-	c.JSON(http.StatusOK, rsp)
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
 }

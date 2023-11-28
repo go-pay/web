@@ -35,22 +35,23 @@ type MemStats struct {
 
 func TestInitServer(t *testing.T) {
 	// 需要测试请自行解开注释测试
+
 	//c := &Config{
 	//	Addr:         ":2233",
-	//	Debug:        false,
+	//	Debug:        true,
 	//	ReadTimeout:  xtime.Duration(15 * time.Second),
 	//	WriteTimeout: xtime.Duration(15 * time.Second),
-	//	Limiter: &limit.Config{
+	//	Limiter: &limiter.Config{
 	//		Rate:       0, // 0 速率不限流
 	//		BucketSize: 100,
 	//	},
 	//}
 	//
 	//g := InitGin(c)
-	//g.Gin.Use( /*g.CORS(),*/ )
+	//g.Gin.Use(middleware.CORS())
 	//
 	//xlog.Level = xlog.DebugLevel
-	//ecode.Success = ecode.NewV2(0, "SUCCESS", "成功")
+	//ecode.Success = ecode.New(0, "SUCCESS", "成功")
 	//initRoute(g.Gin)
 	//
 	//// add hook
@@ -67,9 +68,7 @@ func TestInitServer(t *testing.T) {
 	//	xlog.Warn("after close hook1")
 	//}, func(c context.Context) {
 	//	xlog.Warn("after close hook2")
-	//})
-	//// start server
-	//g.Start()
+	//}).Start()
 }
 
 func initRoute(g *gin.Engine) {
@@ -128,6 +127,10 @@ func initRoute(g *gin.Engine) {
 			return
 		}
 		JSON(c, rsp, nil)
+	})
+
+	g.GET("/app/ping", func(c *gin.Context) {
+		middleware.GinPureProxy(c, "http://localhost:1122")
 	})
 
 	// postman request: POST http://localhost:2233/gopher/web/memStats
