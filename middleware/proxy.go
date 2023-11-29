@@ -2,14 +2,13 @@ package middleware
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"io"
 	"net"
 	"net/http"
 	"reflect"
-	"strings"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
 	"github.com/go-pay/ecode"
 )
@@ -41,46 +40,36 @@ type HttpRsp[V any] struct {
 }
 
 // GinProxy gin request proxy and get rsp
-func GinProxy[Rsp any](c *gin.Context, method, host, uri string) (rspParam Rsp, err error) {
+func GinProxy[Rsp any](c *gin.Context, host, uri string) (rsp Rsp, err error) {
 	var (
-		//req     *http.Request
-		//reader  *strings.Reader
 		rMethod = c.Request.Method
 		rHeader = c.Request.Header
 		rUri    = c.Request.RequestURI
-		//pa      = c.Request.Form.Encode()
-		//rBody   = c.Request.Body
 	)
-	vo := reflect.ValueOf(rspParam)
+	vo := reflect.ValueOf(rsp)
 	if vo.Kind() != reflect.Ptr {
 		err = ecode.New(500, "", "rspParam must be point kind")
 		return
-	}
-	if method != "" {
-		rMethod = strings.ToUpper(method)
 	}
 	if uri != "" {
 		rUri = uri
 	}
 	uri = host + rUri
 	// Request
-	req, e := http.NewRequestWithContext(c, rMethod, uri, c.Request.Body)
+	req, err := http.NewRequestWithContext(c, rMethod, uri, c.Request.Body)
 	if err != nil {
-		err = e
 		return
 	}
 	// Request Header
 	req.Header = rHeader
 	// Do
-	resp, e := httpCli.Do(req)
-	if e != nil {
-		err = e
+	resp, err := httpCli.Do(req)
+	if err != nil {
 		return
 	}
 	defer resp.Body.Close()
-	rspBytes, e := io.ReadAll(resp.Body)
-	if e != nil {
-		err = e
+	rspBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
 		return
 	}
 	if resp.StatusCode != 200 {
@@ -88,7 +77,7 @@ func GinProxy[Rsp any](c *gin.Context, method, host, uri string) (rspParam Rsp, 
 		return
 	}
 	res := &HttpRsp[Rsp]{}
-	if err = json.Unmarshal(rspBytes, res); err != nil {
+	if err = sonic.Unmarshal(rspBytes, res); err != nil {
 		return
 	}
 	return res.Data, nil

@@ -120,7 +120,7 @@ func initRoute(g *gin.Engine) {
 
 	// postman request: GET http://localhost:2233/proxy/a
 	g.GET("/proxy/a", func(c *gin.Context) {
-		rsp, err := middleware.GinProxy[*MemStats](c, "", "http://localhost:2233", "/gopher/web/memStats")
+		rsp, err := middleware.GinProxy[*MemStats](c, "http://localhost:2233", "/gopher/web/memStats")
 		if err != nil {
 			xlog.Errorf("GinProxy err: %v", err)
 			JSON(c, nil, err)
@@ -135,7 +135,7 @@ func initRoute(g *gin.Engine) {
 
 	// postman request: POST http://localhost:2233/gopher/web/memStats
 	g.POST("/gopher/web/memStats", func(c *gin.Context) {
-		rsp, err := middleware.GinProxy[*MemStats](c, "GET", "http://localhost:2233", "")
+		rsp, err := middleware.GinProxy[*MemStats](c, "http://localhost:2233", "")
 		if err != nil {
 			xlog.Errorf("GinProxy err: %v", err)
 			JSON(c, nil, err)
