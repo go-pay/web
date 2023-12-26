@@ -2,13 +2,13 @@ package middleware
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"io"
 	"net"
 	"net/http"
 	"reflect"
 	"time"
 
-	"github.com/bytedance/sonic"
 	"github.com/gin-gonic/gin"
 	"github.com/go-pay/ecode"
 )
@@ -77,7 +77,7 @@ func GinProxy[Rsp any](c *gin.Context, host, uri string) (rsp Rsp, err error) {
 		return
 	}
 	res := &HttpRsp[Rsp]{}
-	if err = sonic.Unmarshal(rspBytes, res); err != nil {
+	if err = json.Unmarshal(rspBytes, res); err != nil {
 		return
 	}
 	return res.Data, nil
