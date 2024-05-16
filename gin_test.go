@@ -48,7 +48,11 @@ func TestInitServer(t *testing.T) {
 	//}
 	//
 	//g := InitGin(c)
-	//g.Gin.Use(middleware.CORS())
+	////g.Gin.Use(middleware.CORS())
+	//// 配置自定义监控的header
+	////middleware.SetAccessLogHeader([]string{"content-type", "sign"})
+	//// 默认header新增
+	//middleware.AddAccessLogHeader([]string{"content-type", "sign"})
 	//
 	//xlog.Level = xlog.DebugLevel
 	//ecode.Success = ecode.New(0, "SUCCESS", "成功")
@@ -81,26 +85,33 @@ func initRoute(g *gin.Engine) {
 		}{Param: c.Param("abc"), Path: c.Request.RequestURI}
 		JSON(c, rsp, nil)
 	})
+
 	g.GET("/b", func(c *gin.Context) {
 		JSON(c, nil, ecode.UnauthorizedErr)
 	})
-	g.POST("/c", func(c *gin.Context) {
-		body, err := metadata.RequestBody(c.Request)
-		if err != nil {
-			xlog.Error(err)
-			JSON(c, nil, err)
-			return
-		}
-		xlog.Debugf("body:%s", body)
-		var ss = struct {
-			Name string `json:"name"`
-		}{}
-		_ = c.ShouldBindJSON(&ss)
-		JSON(c, ss, nil)
-	})
+
+	group := g.Group("/group", middleware.AccessLog("test-app"))
+	{
+		group.POST("/c", func(c *gin.Context) {
+			body, err := metadata.RequestBody(c.Request)
+			if err != nil {
+				xlog.Error(err)
+				JSON(c, nil, err)
+				return
+			}
+			xlog.Debugf("body:%s", body)
+			var ss = struct {
+				Name string `json:"name"`
+			}{}
+			_ = c.ShouldBindJSON(&ss)
+			JSON(c, ss, nil)
+		})
+	}
+
 	g.GET("/d", func(c *gin.Context) {
 		JSON(c, Pager{PageNo: 1, PageSize: 15}.Apply(30, "我是15条数据"), nil)
 	})
+
 	g.POST("/wechatCallback", func(c *gin.Context) {
 		//notify, err := wechat.V3ParseNotify(c.Request)
 		//if err != nil {

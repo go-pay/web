@@ -16,9 +16,6 @@ func RequestBody(req *http.Request) (bs []byte, err error) {
 	if err = req.Body.Close(); err != nil {
 		return nil, err
 	}
-	originalBytes := buf.Bytes()
-	bs = make([]byte, len(originalBytes))
-	copy(bs, originalBytes)
-	req.Body = io.NopCloser(bytes.NewReader(originalBytes))
-	return bs, nil
+	req.Body = io.NopCloser(bytes.NewReader(buf.Bytes()))
+	return buf.Bytes(), nil
 }
