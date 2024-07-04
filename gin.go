@@ -91,10 +91,10 @@ func (g *GinEngine) Start() {
 		}
 		xlog.Warn("http: Server closed")
 	}
-	xlog.Color(xlog.Green).Warn("wait for process working finished")
+	xlog.Warn("wait for process working finished")
 	// wait for process finished
 	g.wg.Wait()
-	xlog.Color(xlog.Green).Warn("process exit")
+	xlog.Warn("process exit")
 }
 
 // 监听信号
@@ -106,7 +106,7 @@ func (g *GinEngine) goNotifySignal() {
 		si := <-ch
 		switch si {
 		case syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT:
-			xlog.Color(xlog.Yellow).Warnf("get a signal %s, stop the process", si.String())
+			xlog.Warnf("get a signal %s, stop the process", si.String())
 			// close gin http server
 			g.Close()
 			ctx, cancelFunc := context.WithTimeout(context.Background(), g.timeout)
