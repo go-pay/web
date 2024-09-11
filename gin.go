@@ -45,7 +45,7 @@ func InitGin(c *Config) *GinEngine {
 	engine.timeout = time.Duration(c.ReadTimeout)
 	engine.server = &http.Server{
 		Addr:         engine.addrPort,
-		Handler:      g,
+		Handler:      g.Handler(),
 		ReadTimeout:  time.Duration(c.ReadTimeout),
 		WriteTimeout: time.Duration(c.WriteTimeout),
 	}
