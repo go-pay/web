@@ -11,6 +11,7 @@ import (
 var (
 	ignoreTraceLog     bool
 	ignoreTraceLogPath = map[string]bool{
+		"/":            true,
 		"/ping":        true,
 		"/health":      true,
 		"/healthCheck": true,

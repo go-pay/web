@@ -31,20 +31,6 @@ func Redirect(c *gin.Context, location string) {
 	c.Redirect(http.StatusFound, location)
 }
 
-//func File(c *gin.Context, fileBytes []byte, fileName, fileType string) {
-//	c.Writer.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
-//	var contentType string
-//	switch fileType {
-//	case "jpg", "jpeg":
-//		contentType = TypeJpg
-//	case "png":
-//		contentType = TypePng
-//	default:
-//		contentType = TypeOctetStream
-//	}
-//	c.Data(http.StatusOK, contentType, fileBytes)
-//}
-
 func File(c *gin.Context, filePath, fileName string) {
 	c.Writer.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
 	c.File(filePath)
