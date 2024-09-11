@@ -20,13 +20,12 @@ import (
 )
 
 type GinEngine struct {
-	server           *http.Server
-	Gin              *gin.Engine
-	timeout          time.Duration
-	wg               sync.WaitGroup
-	addrPort         string
-	IgnoreReleaseLog bool
-	hookMaps         map[hookType][]func(c context.Context)
+	server   *http.Server
+	Gin      *gin.Engine
+	timeout  time.Duration
+	wg       sync.WaitGroup
+	addrPort string
+	hookMaps map[hookType][]func(c context.Context)
 }
 
 func InitGin(c *Config) *GinEngine {
@@ -49,7 +48,7 @@ func InitGin(c *Config) *GinEngine {
 		ReadTimeout:  time.Duration(c.ReadTimeout),
 		WriteTimeout: time.Duration(c.WriteTimeout),
 	}
-	g.Use(engine.Logger(false), middleware.Recovery())
+	g.Use(middleware.Logger(), middleware.Recovery())
 	if c.Limiter != nil && c.Limiter.Rate != 0 {
 		g.Use(middleware.Limiter("", limiter.NewLimiter(c.Limiter)))
 	}
